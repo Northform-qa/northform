@@ -1,0 +1,67 @@
+# =============================================================================
+# TEMPLATE: Northform Forge — Playwright CI Workflow
+# =============================================================================
+# Copy to: .github/workflows/client-[slug]-playwright.yml
+#
+# Placeholders to update (search "REPLACE"):
+#   1. Workflow name          line 15   — use client name
+#   2. Branch triggers        line 18   — match client's branching strategy
+#   3. Working directory      line 34   — path to client's playwright dir
+#   4. Node version           line 43   — default 20, change if client requires different
+#   5. cache-dependency-path  line 44   — must match working directory path
+#   6. Secret name            line 57   — default PLAYWRIGHT_BASE_URL, or use client-specific name
+#   7. Artifact name          line 64   — include client slug to distinguish in GitHub UI
+#   8. Artifact path          line 65   — must match working directory path
+#
+# Required GitHub secret (set in repo Settings → Secrets → Actions):
+#   PLAYWRIGHT_BASE_URL — the base URL of the environment under test
+# =============================================================================
+
+name: "[TEMPLATE] Playwright Tests"  # REPLACE: "Client [Name] — Playwright Tests"
+
+on:
+  push:
+    branches: [main]      # REPLACE: add release branches if client uses them (e.g. develop, staging)
+  pull_request:
+    branches: [main]      # REPLACE: match push.branches above
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: clients/client-SLUG/playwright  # REPLACE: e.g. clients/client-acme/playwright
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20                                                            # REPLACE: if client requires different Node version
+          cache: npm
+          cache-dependency-path: clients/client-SLUG/playwright/package-lock.json   # REPLACE: match working-directory above
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        # Chromium only to stay within free-tier minutes. Add firefox/webkit here if multi-browser coverage is required.
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npx playwright test --project=chromium
+        env:
+          CI: true
+          BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}  # REPLACE secret name if using a client-specific name (e.g. ACME_BASE_URL)
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()  # Upload on both pass and fail so failures are always diagnosable
+        with:
+          name: playwright-report-client-SLUG                              # REPLACE: use client slug (e.g. playwright-report-acme)
+          path: clients/client-SLUG/playwright/playwright-report/         # REPLACE: match working-directory above
+          retention-days: 30

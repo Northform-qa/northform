@@ -1,0 +1,13 @@
+{
+  "name": "northform-forge",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "onboard": "ts-node forge/scripts/onboard-client.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  }
+}

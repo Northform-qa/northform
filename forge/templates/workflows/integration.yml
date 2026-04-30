@@ -1,0 +1,61 @@
+# =============================================================================
+# TEMPLATE: Northform Forge — Integration Tests CI Workflow
+# =============================================================================
+# Copy to: .github/workflows/client-[slug]-integration.yml
+#
+# Placeholders to update (search "REPLACE"):
+#   1. Workflow name          line 15   — use client name
+#   2. Branch triggers        line 18   — match client's branching strategy
+#   3. Working directory      line 32   — path to client's integration dir
+#   4. Node version           line 41   — default 20, change if client requires different
+#   5. cache-dependency-path  line 42   — must match working directory path
+# =============================================================================
+
+name: "[TEMPLATE] Integration Tests"  # REPLACE: "Client [Name] — Integration Tests"
+
+on:
+  push:
+    branches: [main]      # REPLACE: match client's branching strategy
+  pull_request:
+    branches: [main]      # REPLACE: match push.branches above
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: clients/client-SLUG/integration  # REPLACE: e.g. clients/client-acme/integration
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20                                                               # REPLACE: if client requires different Node version
+          cache: npm
+          cache-dependency-path: clients/client-SLUG/integration/package-lock.json     # REPLACE: match working-directory above
+
+      - name: Install test dependencies
+        run: npm ci
+
+      - name: Start services
+        # --wait blocks until all healthchecks pass or the job timeout is reached.
+        # First run pulls images (~1-2 min) — subsequent runs use Docker's layer cache.
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait
+
+      - name: Run integration tests
+        run: npm test
+        env:
+          API_URL: http://localhost:3000
+
+      - name: Print service logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml logs
+
+      - name: Tear down services
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v

@@ -1,0 +1,75 @@
+# Integration test environment — API + Postgres + Redis
+# Replace service definitions, images, and env vars to match the client's stack.
+#
+# Local usage:
+#   docker compose up -d --wait
+#   npm test
+#   docker compose down
+#
+# CI usage (stateless, no restart loops):
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait
+#   npm test
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
+
+services:
+
+  api:
+    build:
+      context: ./api
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-appuser}:${POSTGRES_PASSWORD:-apppassword}@db:5432/${POSTGRES_DB:-appdb}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    networks:
+      - integration-net
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      # Change these for real client environments — never commit real credentials
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apppassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - integration-net
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - integration-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  integration-net:
+    driver: bridge

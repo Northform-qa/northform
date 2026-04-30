@@ -1,0 +1,20 @@
+# CI override — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --wait
+#
+# What this changes:
+#   - All services: restart: "no"  (prevents restart loops from inflating CI minutes)
+#
+# Note on volumes: Docker Compose v2 concatenates sequence fields in overrides,
+# so named volumes cannot be removed via override. Named volumes created during CI
+# are empty and ephemeral — the `docker compose down -v` in the CI teardown step
+# removes them. This has no effect on test correctness or CI cleanliness.
+
+services:
+  api:
+    restart: "no"
+
+  db:
+    restart: "no"
+
+  redis:
+    restart: "no"
