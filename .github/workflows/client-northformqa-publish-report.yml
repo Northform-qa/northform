@@ -1,0 +1,88 @@
+name: "Client Northformqa — Publish Report"
+
+on:
+  workflow_run:
+    workflows: ["Client Northformqa — Playwright Tests"]
+    types: [completed]
+
+jobs:
+  publish-report:
+    runs-on: ubuntu-latest
+    # Publish on both pass and fail — the report is always diagnostic
+    if: >-
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event.workflow_run.conclusion == 'failure'
+    permissions:
+      contents: write   # push to gh-pages branch
+      actions: read     # download artifact from triggering workflow run
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Playwright report
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-report-client-northformqa
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: _report/
+
+      - name: Set up gh-pages worktree
+        run: |
+          git fetch origin gh-pages 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git worktree add _site origin/gh-pages
+          else
+            # First publish — create an orphan branch with no history
+            git worktree add _site --detach
+            git -C _site checkout --orphan gh-pages
+            git -C _site rm -rf . --quiet 2>/dev/null || true
+          fi
+          # Prevent GitHub Pages from running Jekyll on report output
+          touch _site/.nojekyll
+
+      - name: Update client report
+        run: |
+          mkdir -p _site/client-northformqa/latest
+          rm -rf _site/client-northformqa/latest/*
+          cp -r _report/. _site/client-northformqa/latest/
+
+      - name: Regenerate index.html
+        run: |
+          {
+            echo '<!DOCTYPE html>'
+            echo '<html lang="en"><head>'
+            echo '  <meta charset="UTF-8">'
+            echo '  <meta name="viewport" content="width=device-width,initial-scale=1">'
+            echo '  <title>Northform QA — Test Reports</title>'
+            echo '  <style>'
+            echo '    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }'
+            echo '    h1 { font-size: 1rem; font-weight: 600; }'
+            echo '    ul { list-style: none; padding: 0; }'
+            echo '    li { padding: 0.35rem 0; border-bottom: 1px solid #f0f0f0; }'
+            echo '    a { color: #0969da; text-decoration: none; }'
+            echo '    a:hover { text-decoration: underline; }'
+            echo '    footer { margin-top: 2rem; font-size: 0.75rem; color: #888; }'
+            echo '  </style>'
+            echo '</head><body>'
+            echo '  <h1>Northform QA — Test Reports</h1>'
+            echo '  <ul>'
+            for dir in $(find _site -maxdepth 1 -mindepth 1 -type d -name 'client-*' | sort); do
+              client=$(basename "$dir")
+              echo "    <li><a href=\"${client}/latest/\">${client}</a></li>"
+            done
+            echo '  </ul>'
+            echo "  <footer>Updated $(date -u +'%Y-%m-%d %H:%M UTC')</footer>"
+            echo '</body></html>'
+          } > _site/index.html
+
+      - name: Commit and push to gh-pages
+        run: |
+          cd _site
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || \
+            git commit -m "report: update client-northformqa $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push origin HEAD:gh-pages
