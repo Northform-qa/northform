@@ -61,6 +61,7 @@ function copyTemplate(src: string, dst: string): void {
 
 function transformWorkflow(content: string, slug: string): string {
   const clientName = toClientName(slug);
+  const secretName = `PLAYWRIGHT_BASE_URL_${slug.toUpperCase().replace(/-/g, '_')}`;
   return content
     // Strip the template header block (contiguous comment lines at top + trailing blank line)
     .replace(/^(?:#[^\n]*\n)+\n/, '')
@@ -68,6 +69,8 @@ function transformWorkflow(content: string, slug: string): string {
     .replace('"[TEMPLATE] Playwright Tests"', `"Client ${clientName} — Playwright Tests"`)
     // Replace all client-SLUG tokens
     .replace(/client-SLUG/g, `client-${slug}`)
+    // Replace the secret placeholder with the client-namespaced secret name
+    .replace('PLAYWRIGHT_BASE_URL_SLUG', secretName)
     // Strip all # REPLACE trailing comments (with or without colon)
     .replace(/\s+# REPLACE.*$/gm, '');
 }
@@ -139,7 +142,7 @@ async function main(): Promise<void> {
       '',
       '## Next Steps',
       '',
-      `- [ ] Set \`PLAYWRIGHT_BASE_URL\` secret in GitHub → Settings → Secrets → Actions`,
+      `- [ ] Set \`PLAYWRIGHT_BASE_URL_${slug.toUpperCase().replace(/-/g, '_')}\` secret in GitHub → Settings → Secrets → Actions`,
       `  - Value: \`${baseUrl}\``,
       `- [ ] Push and confirm \`.github/workflows/client-${slug}-playwright.yml\` passes in Actions`,
       `- [ ] Delete sample pages and tests in \`playwright/pages/\` and \`playwright/tests/\``,
@@ -175,7 +178,7 @@ async function main(): Promise<void> {
   Manual steps before first CI run:
 
   1. Set GitHub secret
-       Name:  PLAYWRIGHT_BASE_URL
+       Name:  PLAYWRIGHT_BASE_URL_${slug.toUpperCase().replace(/-/g, '_')}
        Value: ${baseUrl}
        Where: repo → Settings → Secrets and variables → Actions
 

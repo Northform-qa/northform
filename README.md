@@ -56,7 +56,7 @@ Go to the repo on GitHub → Settings → Secrets and variables → Actions → 
 
 | Name | Value |
 |---|---|
-| `PLAYWRIGHT_BASE_URL` | The client's base URL (e.g. `https://staging.acme.com`) |
+| `PLAYWRIGHT_BASE_URL_[SLUG]` | The client's base URL — the onboard script prints the exact name to set (e.g. `PLAYWRIGHT_BASE_URL_ACME`) |
 
 **2. Commit and push**
 

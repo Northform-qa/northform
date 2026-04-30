@@ -8,7 +8,7 @@
 
 ## Next Steps
 
-- [ ] Set `PLAYWRIGHT_BASE_URL` secret in GitHub → Settings → Secrets → Actions
+- [ ] Set `PLAYWRIGHT_BASE_URL_NORTHFORMQA` secret in GitHub → Settings → Secrets → Actions
   - Value: `https://www.northformqa.ca`
 - [ ] Push and confirm `.github/workflows/client-northformqa-playwright.yml` passes in Actions
 - [ ] Delete sample pages and tests in `playwright/pages/` and `playwright/tests/`

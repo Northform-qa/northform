@@ -30,7 +30,7 @@ Search the file for `REPLACE` — there are 8 instances. Update each one:
 | `working-directory` | `clients/client-[slug]/playwright` |
 | `node-version` | Client's required Node version (default: `20`) |
 | `cache-dependency-path` | Same path as working-directory + `/package-lock.json` |
-| `BASE_URL` secret name | `PLAYWRIGHT_BASE_URL` or a client-specific name |
+| `BASE_URL` secret name | `PLAYWRIGHT_BASE_URL_[SLUG]` — generated automatically by the onboard script |
 | Artifact `name` | `playwright-report-[slug]` |
 | Artifact `path` | `clients/client-[slug]/playwright/playwright-report/` |
 
@@ -40,9 +40,9 @@ In the GitHub repo settings → **Secrets and variables → Actions → New repo
 
 | Name | Value |
 |---|---|
-| `PLAYWRIGHT_BASE_URL` | The base URL of the environment under test (e.g. `https://staging.client.com`) |
+| `PLAYWRIGHT_BASE_URL_[SLUG]` | The base URL of the environment under test (e.g. `https://staging.client.com`) |
 
-If using a client-specific secret name (step 2 above), use that name instead.
+The onboard script generates the correct namespaced name automatically (e.g. `PLAYWRIGHT_BASE_URL_ACME`). Using a namespaced name avoids secret collisions when multiple clients share the same repo.
 
 ### 4. Commit and push
 
@@ -65,7 +65,7 @@ The workflow will trigger on the next push or pull request to `main`.
 - **Browsers:** The template installs Chromium only to conserve free-tier minutes (~2,000/month). Add `firefox` or `webkit` to the `playwright install` command if the client requires multi-browser coverage, and add matching `--project` flags to the test run command.
 - **Artifacts:** Reports are retained for 30 days. Adjust `retention-days` if the client has compliance requirements.
 - **Multiple environments:** To run against both staging and production, duplicate the workflow file and point each at a different secret.
-- **Secret naming:** If this repo will eventually hold multiple clients, use client-prefixed secret names (e.g. `ACME_BASE_URL`) to avoid collisions.
+- **Secret naming:** The onboard script always generates `PLAYWRIGHT_BASE_URL_[SLUG]` (e.g. `PLAYWRIGHT_BASE_URL_ACME`). All clients in this repo follow this convention — no collisions possible.
 
 ---
 
