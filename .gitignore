@@ -5,3 +5,5 @@ test-results/
 *.local
 test-results/
 .playwright/
+STORIES*
+claude.md

@@ -1,0 +1,48 @@
+name: "Client Northformqa — Playwright Tests"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: clients/client-northformqa/playwright
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: clients/client-northformqa/playwright/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        # Chromium only to stay within free-tier minutes. Add firefox/webkit here if multi-browser coverage is required.
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npx playwright test --project=chromium
+        env:
+          CI: true
+          BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()  # Upload on both pass and fail so failures are always diagnosable
+        with:
+          name: playwright-report-client-northformqa
+          path: clients/client-northformqa/playwright/playwright-report/
+          retention-days: 30
