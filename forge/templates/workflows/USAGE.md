@@ -174,3 +174,86 @@ The publish workflow fires automatically after the next Playwright run completes
 - Go to **Actions** tab → confirm the publish workflow ran after the Playwright workflow
 - Go to the Pages URL: `https://[org].github.io/[repo]/client-[slug]/latest/`
 - The root dashboard at `https://[org].github.io/[repo]/` lists all client reports and updates automatically on each publish
+
+---
+
+## Part 3: Lighthouse CI (Optional)
+
+Run automated Lighthouse audits in CI to score client pages on Performance, Accessibility, Best Practices, and SEO. Fails the build if any score drops below the configured threshold.
+
+### When to add Lighthouse
+
+Add it to any client engagement where page quality matters to the client — which is most of them. Lighthouse is a strong addition to a proposal: it quantifies performance and accessibility in a single number clients understand.
+
+### Default thresholds
+
+| Category | Minimum score |
+|---|---|
+| Performance | 70 |
+| Accessibility | 90 |
+| Best Practices | 80 |
+| SEO | 80 |
+
+These are starting points. Adjust in `clients/client-[slug]/lighthouse/lighthouserc.json` per client expectation. Document any threshold below the default in the client README.
+
+### Steps
+
+#### 1. Copy the template
+
+```bash
+cp -r forge/templates/lighthouse/ clients/client-[slug]/lighthouse/
+cd clients/client-[slug]/lighthouse
+npm install
+```
+
+#### 2. Copy and configure the workflow
+
+```bash
+cp forge/templates/workflows/lighthouse.yml \
+   .github/workflows/client-[slug]-lighthouse.yml
+```
+
+Search the file for `REPLACE` — there are 8 instances. Key ones:
+
+| Placeholder | Replace with |
+|---|---|
+| Workflow `name` | `"Client [Name] — Lighthouse CI"` |
+| `working-directory` | `clients/client-[slug]/lighthouse` |
+| `cache-dependency-path` | Same path + `/package-lock.json` |
+| `LIGHTHOUSE_BASE_URL_SLUG` | `LIGHTHOUSE_BASE_URL_[SLUG]` (e.g. `LIGHTHOUSE_BASE_URL_ACME`) |
+| Artifact `name` | `lighthouse-report-client-[slug]` |
+| Artifact `path` | `clients/client-[slug]/lighthouse/lighthouse-report/` |
+
+#### 3. Set the GitHub secret
+
+In repo **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Name | Value |
+|---|---|
+| `LIGHTHOUSE_BASE_URL_[SLUG]` | Full URL of the page to audit (e.g. `https://www.client.com`) |
+
+Note: The onboard script generates `PLAYWRIGHT_BASE_URL_[SLUG]` only. Lighthouse secrets are opt-in and must be set manually.
+
+#### 4. Validate locally before pushing
+
+```bash
+cd clients/client-[slug]/lighthouse
+npx lhci autorun --collect.url=https://www.client.com
+```
+
+Confirm all assertions pass. If a score is below threshold, either improve the site or lower the threshold and document the reason in the client README.
+
+#### 5. Commit and push
+
+```bash
+git add clients/client-[slug]/lighthouse/ .github/workflows/client-[slug]-lighthouse.yml
+git commit -m "ci: add Lighthouse CI for client-[slug]"
+git push
+```
+
+### Notes
+
+- **`numberOfRuns: 3`** — Lighthouse scores vary run to run. Three runs and median scoring reduce noise. Do not lower below 3 for client-facing reporting.
+- **Audit warnings on `npm install`** — `@lhci/cli` has known transitive dependency advisories (in `@sentry/node`). These are not exploitable in a CI context and the fix would downgrade `lhci` to a breaking version. Accept them.
+- **`workflow_dispatch`** — the Lighthouse workflow includes a manual trigger so you can run an audit on demand without pushing a commit.
+- **`.lighthouseci/` and `lighthouse-report/`** — both are gitignored. Reports are preserved as CI artifacts only.

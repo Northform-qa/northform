@@ -1,0 +1,11 @@
+{
+  "name": "lighthouse-template",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "lhci": "lhci autorun"
+  },
+  "devDependencies": {
+    "@lhci/cli": "^0.14.0"
+  }
+}

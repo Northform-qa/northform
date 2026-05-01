@@ -1,0 +1,45 @@
+name: "Client Northformqa — Lighthouse CI"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: clients/client-northformqa/lighthouse
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: clients/client-northformqa/lighthouse/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Lighthouse CI
+        run: npx lhci autorun --collect.url=$LHCI_URL
+        env:
+          LHCI_URL: ${{ secrets.LIGHTHOUSE_BASE_URL_NORTHFORMQA }}
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report-client-northformqa
+          path: clients/client-northformqa/lighthouse/lighthouse-report/
+          retention-days: 30

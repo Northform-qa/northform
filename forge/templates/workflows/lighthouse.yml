@@ -1,0 +1,69 @@
+# =============================================================================
+# TEMPLATE: Northform Forge — Lighthouse CI Workflow
+# =============================================================================
+# Copy to: .github/workflows/client-[slug]-lighthouse.yml
+#
+# Placeholders to update (search "REPLACE"):
+#   1. Workflow name          — use client name
+#   2. Branch triggers        — match client's branching strategy
+#   3. Working directory      — path to client's lighthouse dir
+#   4. Node version           — default 20, change if client requires different
+#   5. cache-dependency-path  — must match working directory path
+#   6. Secret name            — LIGHTHOUSE_BASE_URL_[SLUG]
+#   7. Artifact name          — include client slug to distinguish in GitHub UI
+#   8. Artifact path          — must match working directory path
+#
+# Required GitHub secret (set in repo Settings → Secrets → Actions):
+#   LIGHTHOUSE_BASE_URL_[SLUG] — base URL of the page(s) under test.
+#   Naming convention: LIGHTHOUSE_BASE_URL_[SLUG] (e.g. LIGHTHOUSE_BASE_URL_ACME)
+#   Set manually — the onboard script generates PLAYWRIGHT_BASE_URL_[SLUG] only.
+#
+# Thresholds (in lighthouserc.json — adjust per client):
+#   Performance ≥ 70 | Accessibility ≥ 90 | Best Practices ≥ 80 | SEO ≥ 80
+# =============================================================================
+
+name: "[TEMPLATE] Lighthouse CI"  # REPLACE: "Client [Name] — Lighthouse CI"
+
+on:
+  push:
+    branches: [main]      # REPLACE: add release branches if client uses them
+  pull_request:
+    branches: [main]      # REPLACE: match push.branches above
+  workflow_dispatch:      # allow manual on-demand runs
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: clients/client-SLUG/lighthouse  # REPLACE: e.g. clients/client-acme/lighthouse
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20                                                              # REPLACE: if client requires different Node version
+          cache: npm
+          cache-dependency-path: clients/client-SLUG/lighthouse/package-lock.json     # REPLACE: match working-directory above
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Lighthouse CI
+        run: npx lhci autorun --collect.url=$LHCI_URL
+        env:
+          LHCI_URL: ${{ secrets.LIGHTHOUSE_BASE_URL_SLUG }}                           # REPLACE: e.g. LIGHTHOUSE_BASE_URL_ACME
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        if: always()  # Upload on both pass and fail so reports are always available
+        with:
+          name: lighthouse-report-client-SLUG                                          # REPLACE: use client slug (e.g. lighthouse-report-client-acme)
+          path: clients/client-SLUG/lighthouse/lighthouse-report/                     # REPLACE: match working-directory above
+          retention-days: 30
