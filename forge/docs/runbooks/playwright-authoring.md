@@ -117,6 +117,55 @@ npx playwright show-report
 
 ---
 
+## Accessibility Testing
+
+Accessibility tests use `@axe-core/playwright` to run an automated WCAG 2.1 AA scan against the live page. They are separate from smoke and interaction tests and live in `tests/accessibility.spec.ts`.
+
+**When to add accessibility tests:**
+- Every new client engagement — AODA compliance is legally required for many Ontario businesses, and automated scanning catches the majority of WCAG 2.1 AA violations at zero marginal cost
+- After a client site redesign or major markup change
+- When a client explicitly asks for AODA/WCAG evidence
+
+**What is covered:**
+- All WCAG 2.0 A + AA and WCAG 2.1 AA rules via axe-core
+- Critical and serious violations fail the test
+- Moderate violations are logged as a warning — they appear in CI output but do not fail the build
+- Minor violations are silently ignored (too noisy for regular CI)
+
+**What is not covered:**
+- Manual a11y checks (colour contrast judged by a human, keyboard navigation order, screen reader phrasing)
+- WCAG AAA rules — AA covers the legal standard
+
+### How to add accessibility tests to a new client
+
+1. Copy `forge/templates/playwright/helpers/accessibility.ts` into `clients/client-[slug]/playwright/helpers/`
+2. Copy `forge/templates/playwright/tests/accessibility.spec.ts` into `clients/client-[slug]/playwright/tests/` and update the import and page class to match the client's POM
+3. Ensure `@axe-core/playwright` is in the client's `package.json` devDependencies and run `npm install`
+4. Run locally:
+   ```bash
+   BASE_URL=https://www.client.com npx playwright test tests/accessibility.spec.ts --headed
+   ```
+5. Review the output. For each violation:
+   - **Fix it on the site** (preferred — improves actual compliance)
+   - **Suppress it** via `ignoreRules` if the client has accepted the exception. Always add a comment at the call site explaining why.
+   ```typescript
+   const { failing, warnings } = await scanPage(page, {
+     ignoreRules: ['label'],  // form uses placeholder-only inputs — accepted by client
+   });
+   ```
+
+### Known suppression patterns
+
+| Rule ID | When to suppress |
+|---|---|
+| `label` | Form inputs use `placeholder` only and client has accepted this — note it in the client README |
+| `color-contrast` | Axe flags contrast at AA; client's brand guidelines explicitly differ — get written sign-off |
+| `region` | Content outside landmark regions; common in single-page apps with custom layout structures |
+
+Do not suppress rules without a documented reason. The `ignoreRules` comment is the documentation.
+
+---
+
 ## Worked Example — northformqa.ca
 
 This is the process used to author the demo client tests.
