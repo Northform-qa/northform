@@ -1,0 +1,74 @@
+# =============================================================================
+# TEMPLATE: Northform Forge — MS Teams Failure Notification (Reusable Workflow)
+# =============================================================================
+# Deploy to: .github/workflows/notify-teams.yml (shared — one copy for all clients)
+#
+# Caller example:
+#
+#   notify-teams:
+#     needs: playwright
+#     if: failure()
+#     uses: ./.github/workflows/notify-teams.yml
+#     with:
+#       client-slug:   northformqa
+#       client-name:   "Northform QA"
+#       workflow-name: "Client Northformqa — Playwright Tests"
+#       run-url:       ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+#     secrets:
+#       teams-webhook: ${{ secrets.TEAMS_WEBHOOK_NORTHFORMQA }}
+#
+# Required GitHub secret:
+#   TEAMS_WEBHOOK_[SLUG] — MS Teams incoming webhook URL per client channel
+#   Create at: Teams channel → ... menu → Connectors → Incoming Webhook → Configure
+# =============================================================================
+
+on:
+  workflow_call:
+    inputs:
+      client-slug:
+        required: true
+        type: string
+      client-name:
+        required: true
+        type: string
+      workflow-name:
+        required: true
+        type: string
+      run-url:
+        required: true
+        type: string
+    secrets:
+      teams-webhook:
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Post failure notification to MS Teams
+        run: |
+          curl -sf -X POST "$TEAMS_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "@type": "MessageCard",
+              "@context": "https://schema.org/extensions",
+              "themeColor": "FF0000",
+              "summary": "CI Failure: ${{ inputs.client-name }}",
+              "sections": [{
+                "activityTitle": "❌ CI Failure — ${{ inputs.client-name }}",
+                "activitySubtitle": "${{ inputs.workflow-name }}",
+                "facts": [
+                  { "name": "Client",   "value": "${{ inputs.client-slug }}" },
+                  { "name": "Workflow", "value": "${{ inputs.workflow-name }}" }
+                ]
+              }],
+              "potentialAction": [{
+                "@type": "OpenUri",
+                "name": "View Run",
+                "targets": [{ "os": "default", "uri": "${{ inputs.run-url }}" }]
+              }]
+            }'
+        env:
+          TEAMS_WEBHOOK: ${{ secrets.teams-webhook }}

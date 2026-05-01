@@ -1,0 +1,77 @@
+# =============================================================================
+# TEMPLATE: Northform Forge — Discord Failure Notification (Reusable Workflow)
+# =============================================================================
+# This is a reusable workflow. Call it from any client workflow on failure.
+#
+# Caller example (add to the end of a client workflow job):
+#
+#   notify-discord:
+#     needs: playwright          # REPLACE: name of the job that runs tests
+#     if: failure()
+#     uses: ./.github/workflows/notify-discord.yml
+#     with:
+#       client-slug:    northformqa
+#       workflow-name:  "Client Northformqa — Playwright Tests"
+#       run-url:        ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+#     secrets:
+#       discord-webhook: ${{ secrets.DISCORD_WEBHOOK_NORTHFORMQA }}
+#
+# Required GitHub secret per client:
+#   DISCORD_WEBHOOK_[SLUG] — Discord incoming webhook URL for the notification channel.
+#   Create at: Discord server → channel settings → Integrations → Webhooks → New Webhook.
+#   This is an internal Luke-only channel — not client-facing.
+# =============================================================================
+
+on:
+  workflow_call:
+    inputs:
+      client-slug:
+        description: 'Client slug (e.g. northformqa)'
+        required: true
+        type: string
+      workflow-name:
+        description: 'Display name of the failing workflow'
+        required: true
+        type: string
+      run-url:
+        description: 'Direct URL to the failing Actions run'
+        required: true
+        type: string
+    secrets:
+      discord-webhook:
+        description: 'Discord incoming webhook URL (DISCORD_WEBHOOK_[SLUG])'
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Post failure notification to Discord
+        run: |
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          PAYLOAD=$(cat <<EOF
+          {
+            "embeds": [{
+              "title": "❌ CI Failure — ${{ inputs.client-slug }}",
+              "description": "**${{ inputs.workflow-name }}** failed.",
+              "color": 15158332,
+              "fields": [
+                {
+                  "name": "View run",
+                  "value": "${{ inputs.run-url }}",
+                  "inline": false
+                }
+              ],
+              "footer": { "text": "Northform Forge" },
+              "timestamp": "${TIMESTAMP}"
+            }]
+          }
+          EOF
+          )
+          curl -sf -X POST "$DISCORD_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.discord-webhook }}

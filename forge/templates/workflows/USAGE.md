@@ -257,3 +257,73 @@ git push
 - **Audit warnings on `npm install`** — `@lhci/cli` has known transitive dependency advisories (in `@sentry/node`). These are not exploitable in a CI context and the fix would downgrade `lhci` to a breaking version. Accept them.
 - **`workflow_dispatch`** — the Lighthouse workflow includes a manual trigger so you can run an audit on demand without pushing a commit.
 - **`.lighthouseci/` and `lighthouse-report/`** — both are gitignored. Reports are preserved as CI artifacts only.
+
+---
+
+## Part 4: Failure Notifications
+
+Four reusable notification workflows fire on CI failure. Each is a separate file deployed once to `.github/workflows/` and called from any client workflow.
+
+| Workflow | Channel | Secret(s) required |
+|---|---|---|
+| `notify-discord.yml` | Discord (Luke's internal server) | `DISCORD_WEBHOOK_[SLUG]` |
+| `notify-email.yml` | Email via Resend | `RESEND_API_KEY` (shared) + `CLIENT_NOTIFY_EMAIL_[SLUG]` |
+| `notify-slack.yml` | Client's Slack channel | `SLACK_WEBHOOK_[SLUG]` |
+| `notify-teams.yml` | Client's MS Teams channel | `TEAMS_WEBHOOK_[SLUG]` |
+
+All use `if: failure()` on the calling job — they only fire on failure, never on success.
+
+### Choosing which channels to enable
+
+- **Discord** — always enable for every client. It's Luke's internal alert channel. The webhook is one Discord server that Luke monitors.
+- **Email, Slack, Teams** — enable based on what the client uses. Record the choice in the client's `README.md`. Only one client-facing channel is typically needed.
+
+### How to wire up a client workflow
+
+Add a `needs:` job at the end of the client's workflow file. Example using the Playwright workflow:
+
+```yaml
+  notify-discord:
+    needs: playwright
+    if: failure()
+    uses: ./.github/workflows/notify-discord.yml
+    with:
+      client-slug:   acme
+      workflow-name: "Client Acme — Playwright Tests"
+      run-url:       ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    secrets:
+      discord-webhook: ${{ secrets.DISCORD_WEBHOOK_ACME }}
+
+  notify-slack:
+    needs: playwright
+    if: failure()
+    uses: ./.github/workflows/notify-slack.yml
+    with:
+      client-slug:   acme
+      client-name:   "Acme Corp"
+      workflow-name: "Client Acme — Playwright Tests"
+      run-url:       ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    secrets:
+      slack-webhook: ${{ secrets.SLACK_WEBHOOK_ACME }}
+```
+
+Add one block per channel the client uses. The `needs:` job name must match the test job in the same file.
+
+### Setting up secrets
+
+**Discord** (`DISCORD_WEBHOOK_[SLUG]`):
+1. Open Discord → target server → channel settings → Integrations → Webhooks → New Webhook
+2. Copy the webhook URL
+3. Add to GitHub: repo **Settings → Secrets → Actions → New repository secret**
+
+**Email** (`RESEND_API_KEY` + `CLIENT_NOTIFY_EMAIL_[SLUG]`):
+1. `RESEND_API_KEY` — already exists from northformqa.ca contact form. Reuse it.
+2. `CLIENT_NOTIFY_EMAIL_[SLUG]` — the client's preferred alert email address
+
+**Slack** (`SLACK_WEBHOOK_[SLUG]`):
+1. In the client's Slack workspace: Apps → Incoming Webhooks → Add to Slack → choose channel → copy URL
+2. Add as `SLACK_WEBHOOK_[SLUG]` in GitHub secrets
+
+**MS Teams** (`TEAMS_WEBHOOK_[SLUG]`):
+1. In the client's Teams channel: `...` menu → Connectors → Incoming Webhook → Configure → copy URL
+2. Add as `TEAMS_WEBHOOK_[SLUG]` in GitHub secrets

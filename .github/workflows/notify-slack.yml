@@ -1,0 +1,63 @@
+name: "Notify — Slack"
+
+on:
+  workflow_call:
+    inputs:
+      client-slug:
+        required: true
+        type: string
+      client-name:
+        description: 'Display name of the client (e.g. "Northform QA")'
+        required: true
+        type: string
+      workflow-name:
+        required: true
+        type: string
+      run-url:
+        required: true
+        type: string
+    secrets:
+      slack-webhook:
+        description: 'Slack incoming webhook URL (SLACK_WEBHOOK_[SLUG])'
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Post failure notification to Slack
+        run: |
+          curl -sf -X POST "$SLACK_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "❌ CI Failure — ${{ inputs.client-name }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Workflow:*\n${{ inputs.workflow-name }}" },
+                    { "type": "mrkdwn", "text": "*Client:*\n${{ inputs.client-slug }}" }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": { "type": "plain_text", "text": "View Run" },
+                      "url": "${{ inputs.run-url }}"
+                    }
+                  ]
+                }
+              ]
+            }'
+        env:
+          SLACK_WEBHOOK: ${{ secrets.slack-webhook }}

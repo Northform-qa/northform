@@ -46,3 +46,14 @@ jobs:
           name: playwright-report-client-northformqa
           path: clients/client-northformqa/playwright/playwright-report/
           retention-days: 30
+
+  notify-discord:
+    needs: playwright
+    if: failure()
+    uses: ./.github/workflows/notify-discord.yml
+    with:
+      client-slug:   northformqa
+      workflow-name: "Client Northformqa — Playwright Tests"
+      run-url:       ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    secrets:
+      discord-webhook: ${{ secrets.DISCORD_WEBHOOK_NORTHFORMQA }}

@@ -1,0 +1,68 @@
+# =============================================================================
+# TEMPLATE: Northform Forge — k6 Load Test Workflow
+# =============================================================================
+# Copy to: .github/workflows/client-[slug]-load.yml
+#
+# Placeholders to update (search "REPLACE"):
+#   1. Workflow name   — use client name
+#   2. Branch triggers — match client's branching strategy
+#   3. Script path     — path to client's k6 script
+#   4. Secret name     — LOAD_BASE_URL_[SLUG]
+#   5. Artifact name   — include client slug
+#   6. Artifact path   — path to results file
+#
+# Required GitHub secret (set in repo Settings → Secrets → Actions):
+#   LOAD_BASE_URL_[SLUG] — base URL of the environment under test.
+#   Naming convention: LOAD_BASE_URL_[SLUG] (e.g. LOAD_BASE_URL_ACME)
+#   Set manually — the onboard script generates PLAYWRIGHT_BASE_URL_[SLUG] only.
+#
+# ⚠️  This workflow runs the SMOKE scenario only (2 VUs, 30s).
+#     Never enable load or stress scenarios in CI against production
+#     without explicit written sign-off from the client.
+# =============================================================================
+
+name: "[TEMPLATE] k6 Load Test"  # REPLACE: "Client [Name] — k6 Load Test"
+
+on:
+  push:
+    branches: [main]      # REPLACE: match client's branching strategy
+  pull_request:
+    branches: [main]      # REPLACE: match push.branches above
+  workflow_dispatch:      # allow manual on-demand runs
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -q
+          sudo apt-get install k6 -q
+
+      - name: Run smoke test
+        run: >
+          k6 run
+          --out json=clients/client-SLUG/load/results.json
+          clients/client-SLUG/load/smoke.js
+        env:
+          K6_BASE_URL: ${{ secrets.LOAD_BASE_URL_SLUG }}  # REPLACE: e.g. LOAD_BASE_URL_ACME
+          K6_SCENARIO: smoke
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-results-client-SLUG          # REPLACE: use client slug (e.g. load-results-client-acme)
+          path: clients/client-SLUG/load/results.json  # REPLACE: match script path above
+          retention-days: 30

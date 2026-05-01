@@ -1,0 +1,35 @@
+meta {
+  name: POST Item
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/items
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  {
+    "name": "Test item from Bruno"
+  }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("response has id", function() {
+    expect(res.body).to.have.property("id");
+  });
+
+  test("response has correct name", function() {
+    expect(res.body.name).to.equal("Test item from Bruno");
+  });
+}

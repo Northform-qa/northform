@@ -1,0 +1,78 @@
+# =============================================================================
+# TEMPLATE: Northform Forge — Slack Failure Notification (Reusable Workflow)
+# =============================================================================
+# Deploy to: .github/workflows/notify-slack.yml (shared — one copy for all clients)
+#
+# Caller example:
+#
+#   notify-slack:
+#     needs: playwright
+#     if: failure()
+#     uses: ./.github/workflows/notify-slack.yml
+#     with:
+#       client-slug:   northformqa
+#       client-name:   "Northform QA"
+#       workflow-name: "Client Northformqa — Playwright Tests"
+#       run-url:       ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+#     secrets:
+#       slack-webhook: ${{ secrets.SLACK_WEBHOOK_NORTHFORMQA }}
+#
+# Required GitHub secret:
+#   SLACK_WEBHOOK_[SLUG] — Slack incoming webhook URL per client channel
+#   Create at: Slack app settings → Incoming Webhooks → Add New Webhook
+# =============================================================================
+
+on:
+  workflow_call:
+    inputs:
+      client-slug:
+        required: true
+        type: string
+      client-name:
+        required: true
+        type: string
+      workflow-name:
+        required: true
+        type: string
+      run-url:
+        required: true
+        type: string
+    secrets:
+      slack-webhook:
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Post failure notification to Slack
+        run: |
+          curl -sf -X POST "$SLACK_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "❌ CI Failure — ${{ inputs.client-name }}" }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Workflow:*\n${{ inputs.workflow-name }}" },
+                    { "type": "mrkdwn", "text": "*Client:*\n${{ inputs.client-slug }}" }
+                  ]
+                },
+                {
+                  "type": "actions",
+                  "elements": [{
+                    "type": "button",
+                    "text": { "type": "plain_text", "text": "View Run" },
+                    "url": "${{ inputs.run-url }}"
+                  }]
+                }
+              ]
+            }'
+        env:
+          SLACK_WEBHOOK: ${{ secrets.slack-webhook }}

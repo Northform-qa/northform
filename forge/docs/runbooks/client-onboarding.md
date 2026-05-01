@@ -163,6 +163,53 @@ The root dashboard at `https://northform-qa.github.io/northform/` lists all clie
 
 ---
 
+## Step 7 — Set Up Failure Notifications
+
+Notifications fire when CI fails. Always wire up Discord (internal). Add one client-facing channel based on what the client uses — ask during intake.
+
+### Discord (internal — always do this)
+
+1. Create a webhook in your Discord server for this client's channel:
+   Discord → channel settings → Integrations → Webhooks → New Webhook → copy URL
+2. Add secret to GitHub: `DISCORD_WEBHOOK_[SLUG]` = the webhook URL
+3. Add to the client's Playwright workflow (and any other workflow you want monitored):
+
+```yaml
+  notify-discord:
+    needs: playwright
+    if: failure()
+    uses: ./.github/workflows/notify-discord.yml
+    with:
+      client-slug:   [slug]
+      workflow-name: "Client [Name] — Playwright Tests"
+      run-url:       ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    secrets:
+      discord-webhook: ${{ secrets.DISCORD_WEBHOOK_[SLUG_UPPER] }}
+```
+
+### Client-facing channel (pick one)
+
+Record the chosen channel in `clients/client-[slug]/README.md`.
+
+**Email (Resend):**
+- Add `CLIENT_NOTIFY_EMAIL_[SLUG]` secret = client's alert email address
+- `RESEND_API_KEY` already exists — reuse it
+- Add `notify-email` job to the client workflow (same pattern as Discord above, using `notify-email.yml`)
+
+**Slack:**
+- Client creates an Incoming Webhook in their workspace: Apps → Incoming Webhooks → Add to Slack → choose channel
+- Add `SLACK_WEBHOOK_[SLUG]` secret = webhook URL
+- Add `notify-slack` job to the client workflow
+
+**MS Teams:**
+- Client creates an Incoming Webhook in their channel: `...` menu → Connectors → Incoming Webhook → Configure
+- Add `TEAMS_WEBHOOK_[SLUG]` secret = webhook URL
+- Add `notify-teams` job to the client workflow
+
+Full caller examples and secret setup details are in `forge/templates/workflows/USAGE.md` Part 4.
+
+---
+
 ## Handoff Checklist
 
 Before considering an engagement live:
@@ -171,6 +218,8 @@ Before considering an engagement live:
 - [ ] CI is green in GitHub Actions
 - [ ] Playwright HTML report artifact is uploading on each run
 - [ ] Pages report is live and accessible at the public URL
+- [ ] Discord notification wired and tested (trigger a deliberate failure to confirm)
+- [ ] Client-facing notification channel wired and channel recorded in client README
 - [ ] `clients/client-[slug]/README.md` is up to date with stack notes and contacts
 - [ ] Sample pages/tests have been deleted and replaced with client-specific code
 - [ ] Client has been given the Pages URL (if applicable)

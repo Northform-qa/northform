@@ -1,0 +1,54 @@
+name: "Notify — Microsoft Teams"
+
+on:
+  workflow_call:
+    inputs:
+      client-slug:
+        required: true
+        type: string
+      client-name:
+        description: 'Display name of the client (e.g. "Northform QA")'
+        required: true
+        type: string
+      workflow-name:
+        required: true
+        type: string
+      run-url:
+        required: true
+        type: string
+    secrets:
+      teams-webhook:
+        description: 'MS Teams incoming webhook URL (TEAMS_WEBHOOK_[SLUG])'
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Post failure notification to MS Teams
+        run: |
+          curl -sf -X POST "$TEAMS_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "@type": "MessageCard",
+              "@context": "https://schema.org/extensions",
+              "themeColor": "FF0000",
+              "summary": "CI Failure: ${{ inputs.client-name }}",
+              "sections": [{
+                "activityTitle": "❌ CI Failure — ${{ inputs.client-name }}",
+                "activitySubtitle": "${{ inputs.workflow-name }}",
+                "facts": [
+                  { "name": "Client", "value": "${{ inputs.client-slug }}" },
+                  { "name": "Workflow", "value": "${{ inputs.workflow-name }}" }
+                ]
+              }],
+              "potentialAction": [{
+                "@type": "OpenUri",
+                "name": "View Run",
+                "targets": [{ "os": "default", "uri": "${{ inputs.run-url }}" }]
+              }]
+            }'
+        env:
+          TEAMS_WEBHOOK: ${{ secrets.teams-webhook }}
