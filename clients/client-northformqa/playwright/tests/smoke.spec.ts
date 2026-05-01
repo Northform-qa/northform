@@ -10,7 +10,6 @@ test.describe('Smoke: northformqa.ca', () => {
     });
 
     await test.step('page title contains brand name', async () => {
-      // VERIFY: update pattern if the actual <title> text differs
       await expect(page).toHaveTitle(/northform/i);
     });
 

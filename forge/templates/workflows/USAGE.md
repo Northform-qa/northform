@@ -62,10 +62,50 @@ The workflow will trigger on the next push or pull request to `main`.
 
 ## Notes
 
-- **Browsers:** The template installs Chromium only to conserve free-tier minutes (~2,000/month). Add `firefox` or `webkit` to the `playwright install` command if the client requires multi-browser coverage, and add matching `--project` flags to the test run command.
+- **Browsers:** The template runs Chromium only by default. See the multi-browser section below for how to enable Firefox and WebKit.
 - **Artifacts:** Reports are retained for 30 days. Adjust `retention-days` if the client has compliance requirements.
 - **Multiple environments:** To run against both staging and production, duplicate the workflow file and point each at a different secret.
 - **Secret naming:** The onboard script always generates `PLAYWRIGHT_BASE_URL_[SLUG]` (e.g. `PLAYWRIGHT_BASE_URL_ACME`). All clients in this repo follow this convention — no collisions possible.
+
+---
+
+## Multi-Browser Coverage (Optional)
+
+The template ships with a commented-out `strategy.matrix` block that enables Chromium, Firefox, and WebKit as parallel CI jobs. It is off by default.
+
+### When to enable it
+
+Offer multi-browser coverage only when a client explicitly asks for it or when their user base has meaningful non-Chromium traffic. Most early-stage clients do not need it.
+
+### Cost tradeoff
+
+| Configuration | Minutes per push | Runs/month at 2,000 min cap |
+|---|---|---|
+| Chromium only (default) | ~3–5 min | ~400–600 |
+| + Firefox | ~6–10 min | ~200–300 |
+| Chromium + Firefox + WebKit | ~9–15 min | ~130–220 |
+
+These are estimates. Actual cost depends on test count and suite duration. Monitor usage under **Settings → Billing** on GitHub.
+
+### How to enable
+
+1. Open the client's generated workflow file (`.github/workflows/client-[slug]-playwright.yml`)
+2. Uncomment the `strategy` block:
+   ```yaml
+   strategy:
+     matrix:
+       browser: [chromium, firefox, webkit]
+     fail-fast: false
+   ```
+3. Change `chromium` to `${{ matrix.browser }}` in three places:
+   - `npx playwright install --with-deps chromium` → `${{ matrix.browser }}`
+   - `npx playwright test --project=chromium` → `${{ matrix.browser }}`
+   - Artifact `name`: `playwright-report-client-[slug]-chromium` → `playwright-report-client-[slug]-${{ matrix.browser }}`
+4. If the client uses the publish-report workflow, update its artifact reference to pick up one of the matrix artifacts (typically chromium — the publish step is browser-agnostic).
+
+### Do not enable by default on existing clients
+
+Enabling the matrix on a client who did not ask for it increases their CI cost without delivering value. Always confirm with Luke before enabling on an active client workspace.
 
 ---
 

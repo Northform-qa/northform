@@ -16,8 +16,9 @@ test.describe('Contact form', () => {
     const northformPage = new NorthformPage(page);
 
     // Intercept the form submission POST to avoid live submissions in CI.
-    // VERIFY: tighten this pattern to the actual endpoint after first headed run
-    //         (e.g. '**/api/contact**' or '**/formspree.io/**')
+    // Broad pattern is intentional: the form POSTs to a third-party endpoint (provider
+    // implementation detail). Intercepting all fetch/XHR POSTs keeps this test
+    // provider-agnostic and prevents inbox pollution regardless of which service is used.
     await page.route('**', async route => {
       const req = route.request();
       if (req.method() === 'POST' && ['fetch', 'xhr'].includes(req.resourceType())) {
@@ -44,9 +45,8 @@ test.describe('Contact form', () => {
     });
 
     await test.step('success confirmation is visible', async () => {
-      // VERIFY: update this text pattern to match the actual post-submission UI state
       await expect(
-        page.getByText(/thank you|message sent|we.ll be in touch|sent|received/i)
+        page.getByText(/Thanks.+your message was sent/)
       ).toBeVisible({ timeout: 10_000 });
     });
   });
@@ -61,7 +61,7 @@ test.describe('Contact form', () => {
     await test.step('form does not transition to success state', async () => {
       // The form has no visible error messages for empty fields but blocks submission.
       // Asserting no success text appeared is the correct observable outcome.
-      // VERIFY: update success text pattern if the actual confirmation copy changes
+      // If the success copy changes, update this pattern to match the new text.
       await expect(
         page.getByText(/thank you|message sent|we.ll be in touch|sent|received/i)
       ).not.toBeVisible();
